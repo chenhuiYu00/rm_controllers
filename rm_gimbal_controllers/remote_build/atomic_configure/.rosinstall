@@ -1,0 +1,2 @@
+- setup-file:
+    local-name: /home/yuchen/usetest/RM_ROS/src/rm_controllers/rm_gimbal_controllers/remote_build/devel/setup.sh

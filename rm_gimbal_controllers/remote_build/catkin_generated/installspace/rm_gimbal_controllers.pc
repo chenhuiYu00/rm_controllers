@@ -1,0 +1,8 @@
+prefix=/usr/local
+
+Name: rm_gimbal_controllers
+Description: Description of rm_gimbal_controllers
+Version: 0.1.2
+Cflags: -I${prefix}/include
+Libs: -L${prefix}/lib -lrm_gimbal_controllers
+Requires: roscpp roslint rm_msgs rm_common pluginlib hardware_interface controller_interface forward_command_controller realtime_tools control_toolbox effort_controllers tf2 tf2_geometry_msgs visualization_msgs dynamic_reconfigure angles
