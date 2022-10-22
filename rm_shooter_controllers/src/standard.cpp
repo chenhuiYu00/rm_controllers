@@ -70,11 +70,13 @@ bool Controller::init(hardware_interface::RobotHW* robot_hw, ros::NodeHandle& ro
 
   ros::NodeHandle nh_friction_l = ros::NodeHandle(controller_nh, "friction_left");
   ros::NodeHandle nh_friction_r = ros::NodeHandle(controller_nh, "friction_right");
-  ros::NodeHandle nh_trigger = ros::NodeHandle(controller_nh, "trigger");
+  ros::NodeHandle nh_trigger_pos = ros::NodeHandle(controller_nh, "trigger_pos");
+  ros::NodeHandle nh_trigger_vel = ros::NodeHandle(controller_nh, "trigger_vel");
   effort_joint_interface_ = robot_hw->get<hardware_interface::EffortJointInterface>();
   return !(!ctrl_friction_l_.init(effort_joint_interface_, nh_friction_l) ||
            !ctrl_friction_r_.init(effort_joint_interface_, nh_friction_r) ||
-           !ctrl_trigger_.init(effort_joint_interface_, nh_trigger));
+           !ctrl_trigger_pos_.init(effort_joint_interface_, nh_trigger_pos) ||
+           !ctrl_trigger_vel_.init(effort_joint_interface_, nh_trigger_vel));
 }
 
 void Controller::starting(const ros::Time& /*time*/)
@@ -90,9 +92,7 @@ void Controller::update(const ros::Time& time, const ros::Duration& period)
   if (state_ != cmd_.mode)
   {
     if (state_ != BLOCK)
-      if ((state_ != PUSH || cmd_.mode != READY) ||
-          (state_ == PUSH && cmd_.mode == READY &&
-           std::fmod(std::abs(ctrl_trigger_.command_struct_.position_ - ctrl_trigger_.getPosition()), 2. * M_PI) < 0.01))
+      if ((state_ != PUSH || cmd_.mode != READY) || (state_ == PUSH && cmd_.mode == READY))
       {
         state_ = cmd_.mode;
         state_changed_ = true;
@@ -105,20 +105,24 @@ void Controller::update(const ros::Time& time, const ros::Duration& period)
   {
     case READY:
       ready(period);
+      ctrl_trigger_pos_.update(time, period);
       break;
     case PUSH:
       push(time, period);
+      ctrl_trigger_vel_.update(time, period);
       break;
     case STOP:
       stop(time, period);
       break;
     case BLOCK:
       block(time, period);
+      ctrl_trigger_pos_.update(time, period);
       break;
   }
   ctrl_friction_l_.update(time, period);
   ctrl_friction_r_.update(time, period);
-  ctrl_trigger_.update(time, period);
+  //  ctrl_trigger_vel_.update(time, period);
+  //  ctrl_trigger_pos_.update(time, period);
 }
 
 void Controller::stop(const ros::Time& time, const ros::Duration& period)
@@ -130,7 +134,8 @@ void Controller::stop(const ros::Time& time, const ros::Duration& period)
 
     ctrl_friction_l_.setCommand(0.);
     ctrl_friction_r_.setCommand(0.);
-    ctrl_trigger_.setCommand(ctrl_trigger_.joint_.getPosition());
+    ctrl_trigger_vel_.setCommand(0.);
+    ctrl_trigger_pos_.setCommand(ctrl_trigger_pos_.joint_.getPosition());
   }
 }
 
@@ -159,16 +164,15 @@ void Controller::push(const ros::Time& time, const ros::Duration& period)
         ctrl_friction_r_.joint_.getVelocity() < -M_PI)) &&
       (time - last_shoot_time_).toSec() >= 1. / cmd_.hz)
   {  // Time to shoot!!!
-    ctrl_trigger_.setCommand(ctrl_trigger_.command_struct_.position_ -
-                             2. * M_PI / static_cast<double>(push_per_rotation_));
+    ctrl_trigger_vel_.setCommand(-2. * M_PI * (cmd_.hz / push_per_rotation_));
     last_shoot_time_ = time;
   }
   else
     ROS_DEBUG("[Shooter] Wait for friction wheel");
 
   // Check block
-  if (ctrl_trigger_.joint_.getEffort() < -config_.block_effort &&
-      std::abs(ctrl_trigger_.joint_.getVelocity()) < config_.block_speed)
+  if (ctrl_trigger_vel_.joint_.getEffort() < -config_.block_effort &&
+      std::abs(ctrl_trigger_vel_.joint_.getVelocity()) < config_.block_speed)
   {
     if (!maybe_block_)
     {
@@ -193,9 +197,10 @@ void Controller::block(const ros::Time& time, const ros::Duration& period)
     state_changed_ = false;
     ROS_INFO("[Shooter] Enter BLOCK");
     last_block_time_ = time;
-    ctrl_trigger_.setCommand(ctrl_trigger_.joint_.getPosition() + config_.anti_block_angle);
+    ctrl_trigger_vel_.setCommand(0);
+    ctrl_trigger_pos_.setCommand(ctrl_trigger_pos_.joint_.getPosition() + config_.anti_block_angle);
   }
-  if (std::abs(ctrl_trigger_.command_struct_.position_ - ctrl_trigger_.joint_.getPosition()) <
+  if (std::abs(ctrl_trigger_pos_.command_struct_.position_ - ctrl_trigger_pos_.joint_.getPosition()) <
           config_.anti_block_threshold ||
       (time - last_block_time_).toSec() > config_.block_overtime)
   {
@@ -229,7 +234,7 @@ void Controller::setSpeed(const rm_msgs::ShootCmd& cmd)
 void Controller::normalize()
 {
   double push_angle = 2. * M_PI / static_cast<double>(push_per_rotation_);
-  ctrl_trigger_.setCommand(push_angle * std::floor((ctrl_trigger_.joint_.getPosition() + 0.01) / push_angle));
+  ctrl_trigger_pos_.setCommand(push_angle * std::floor((ctrl_trigger_pos_.joint_.getPosition() + 0.01) / push_angle));
 }
 
 void Controller::reconfigCB(rm_shooter_controllers::ShooterConfig& config, uint32_t /*level*/)

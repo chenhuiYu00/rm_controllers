@@ -81,13 +81,14 @@ private:
   void reconfigCB(rm_shooter_controllers::ShooterConfig& config, uint32_t /*level*/);
 
   hardware_interface::EffortJointInterface* effort_joint_interface_{};
-  effort_controllers::JointVelocityController ctrl_friction_l_, ctrl_friction_r_;
-  effort_controllers::JointPositionController ctrl_trigger_;
+  effort_controllers::JointVelocityController ctrl_friction_l_, ctrl_friction_r_, ctrl_trigger_vel_;
+  effort_controllers::JointPositionController ctrl_trigger_pos_;
   int push_per_rotation_{};
   double push_qd_threshold_{};
   bool dynamic_reconfig_initialized_ = false;
   bool state_changed_ = false;
   bool maybe_block_ = false;
+  bool ready_vel_zero = false, ready_pos_reset = false;
 
   ros::Time last_shoot_time_, block_time_, last_block_time_;
   enum
