@@ -395,38 +395,38 @@ void BalanceController::reconfigCB(rm_chassis_controllers::QRConfig& config, uin
 {
   if (!dynamic_reconfig_initialized_)
   {
-    config.q_1 = q_config_[0];
-    config.q_2 = q_config_[1];
-    config.q_3 = q_config_[2];
-    config.q_4 = q_config_[3];
-    config.q_5 = q_config_[4];
-    config.q_6 = q_config_[5];
-    config.q_7 = q_config_[6];
-    config.q_8 = q_config_[7];
-    config.q_9 = q_config_[8];
-    config.q_10 = q_config_[9];
-    config.r_1 = r_config_[0];
-    config.r_2 = r_config_[1];
-    config.r_3 = r_config_[2];
-    config.r_4 = r_config_[3];
+    config.q_0 = q_config_[0];
+    config.q_1 = q_config_[1];
+    config.q_2 = q_config_[2];
+    config.q_3 = q_config_[3];
+    config.q_4 = q_config_[4];
+    config.q_5 = q_config_[5];
+    config.q_6 = q_config_[6];
+    config.q_7 = q_config_[7];
+    config.q_8 = q_config_[8];
+    config.q_9 = q_config_[9];
+    config.r_0 = r_config_[0];
+    config.r_1 = r_config_[1];
+    config.r_2 = r_config_[2];
+    config.r_3 = r_config_[3];
     dynamic_reconfig_initialized_ = true;
     return;
   }
   ROS_INFO("[QR] Dynamic params change");
-  q_dynamic_[0] = config.q_1;
-  q_dynamic_[1] = config.q_2;
-  q_dynamic_[2] = config.q_3;
-  q_dynamic_[3] = config.q_4;
-  q_dynamic_[4] = config.q_5;
-  q_dynamic_[5] = config.q_6;
-  q_dynamic_[6] = config.q_7;
-  q_dynamic_[7] = config.q_8;
-  q_dynamic_[8] = config.q_9;
-  q_dynamic_[9] = config.q_10;
-  r_dynamic_[0] = config.r_1;
-  r_dynamic_[1] = config.r_2;
-  r_dynamic_[2] = config.r_3;
-  r_dynamic_[3] = config.r_4;
+  q_dynamic_[0] = config.q_0;
+  q_dynamic_[1] = config.q_1;
+  q_dynamic_[2] = config.q_2;
+  q_dynamic_[3] = config.q_3;
+  q_dynamic_[4] = config.q_4;
+  q_dynamic_[5] = config.q_5;
+  q_dynamic_[6] = config.q_6;
+  q_dynamic_[7] = config.q_7;
+  q_dynamic_[8] = config.q_8;
+  q_dynamic_[9] = config.q_9;
+  r_dynamic_[0] = config.r_0;
+  r_dynamic_[1] = config.r_1;
+  r_dynamic_[2] = config.r_2;
+  r_dynamic_[3] = config.r_3;
 
   // Update Q
   for (int i = 0; i < STATE_DIM; ++i)
