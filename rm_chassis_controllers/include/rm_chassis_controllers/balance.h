@@ -35,6 +35,8 @@ private:
   Eigen::Matrix<double, STATE_DIM, 1> x_;
   double wheel_radius_, wheel_base_;
   double position_des_ = 0;
+  double position_offset_ = 0.;
+  double position_clear_threshold_ = 0.;
   double yaw_des_ = 0;
 
   // dynamic reconfigure
