@@ -18,6 +18,12 @@ using Eigen::Matrix;
 class BalanceController : public ChassisBase<rm_control::RobotStateInterface, hardware_interface::ImuSensorInterface,
                                              hardware_interface::EffortJointInterface>
 {
+  enum balanceState
+  {
+    NORMAL,
+    BLOCK
+  };
+
 public:
   BalanceController() = default;
   bool init(hardware_interface::RobotHW* robot_hw, ros::NodeHandle& root_nh, ros::NodeHandle& controller_nh) override;
@@ -43,6 +49,11 @@ private:
   double q_dynamic_[STATE_DIM], r_dynamic_[CONTROL_DIM], q_config_[STATE_DIM], r_config_[CONTROL_DIM];
   bool dynamic_reconfig_initialized_ = false;
   dynamic_reconfigure::Server<rm_chassis_controllers::QRConfig>* reconf_server_;
+
+  int balance_state_;
+  ros::Time block_time_, last_block_time_;
+  double block_duration_, block_angle_, block_effort_, anti_block_effort_, block_overtime_;
+  bool balance_state_changed_ = false, maybe_block_ = false;
 
   hardware_interface::ImuSensorHandle imu_handle_;
   hardware_interface::JointHandle left_wheel_joint_handle_, right_wheel_joint_handle_,
