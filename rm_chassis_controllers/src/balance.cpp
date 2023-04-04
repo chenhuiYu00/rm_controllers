@@ -324,9 +324,6 @@ bool BalanceController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHan
   };
   reconf_server_->setCallback(cb);
 
-  state_pub_ = root_nh.advertise<rm_msgs::BalanceState>("/state", 10);
-  balance_state_ = BalanceState::NORMAL;
-
   return true;
 }
 
