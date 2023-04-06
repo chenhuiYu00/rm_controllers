@@ -168,10 +168,12 @@ bool BalanceController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHan
     if (r[i].getType() == XmlRpc::XmlRpcValue::TypeDouble)
     {
       r_(i, i) = static_cast<double>(r[i]);
+      r_config_[i] = static_cast<double>(r[i]);
     }
     else if (r[i].getType() == XmlRpc::XmlRpcValue::TypeInt)
     {
       r_(i, i) = static_cast<int>(r[i]);
+      r_config_[i] = static_cast<int>(r[i]);
     }
   }
 
