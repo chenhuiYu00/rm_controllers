@@ -17,7 +17,7 @@
 namespace rm_chassis_controllers
 {
 using Eigen::Matrix;
-class BalanceController : public ChassisBase<rm_control::RobotStateInterface, rm_control::RmImuSensorInterface,
+class BalanceController : public ChassisBase<rm_control::RobotStateInterface, hardware_interface::ImuSensorInterface,
                                              hardware_interface::EffortJointInterface>
 {
   enum BalanceMode
@@ -64,9 +64,9 @@ private:
   ros::Time block_time_, last_block_time_;
   double fallen_angle_, block_angle_, block_duration_, block_velocity_, block_effort_, anti_block_effort_,
       block_overtime_;
-  bool balance_state_changed_ = false, maybe_block_ = false, imu_online_;
+  bool balance_state_changed_ = false, maybe_block_ = false;
 
-  rm_control::RmImuSensorHandle imu_handle_;
+  hardware_interface::ImuSensorHandle imu_handle_;
   hardware_interface::JointHandle left_wheel_joint_handle_, right_wheel_joint_handle_,
       left_momentum_block_joint_handle_, right_momentum_block_joint_handle_;
 

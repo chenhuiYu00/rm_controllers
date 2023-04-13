@@ -19,7 +19,7 @@ bool BalanceController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHan
 {
   ChassisBase::init(robot_hw, root_nh, controller_nh);
 
-  imu_handle_ = robot_hw->get<rm_control::RmImuSensorInterface>()->getHandle(
+  imu_handle_ = robot_hw->get<hardware_interface::ImuSensorInterface>()->getHandle(
       getParam(controller_nh, "imu_name", std::string("base_imu")));
   std::string left_wheel_joint, right_wheel_joint, left_momentum_block_joint, right_momentum_block_joint;
   if (!controller_nh.getParam("left/wheel_joint", left_wheel_joint) ||
@@ -316,7 +316,9 @@ bool BalanceController::init(hardware_interface::RobotHW* robot_hw, ros::NodeHan
   }
 
   k_mid_ = lqr.getK();
-  k_fallen_ = lqr_fallen.getK();
+  k_fallen_ = lqr.getK();
+  for (int i = 0; i < CONTROL_DIM; i++)
+    k_fallen_.row(i)(2) = 0;
   k_low_ = lqr_low.getK();
   k_high_ = lqr_high.getK();
   ROS_INFO_STREAM("K_MID of LQR:" << k_mid_);
@@ -352,7 +354,6 @@ void BalanceController::moveJoint(const ros::Time& time, const ros::Duration& pe
     last_balance_mode_ = mode;
   }
 
-  imu_online_ = ros::Time::now() - imu_handle_.getTimeStamp() < ros::Duration(0.2);
   geometry_msgs::Vector3 gyro;
   gyro.x = imu_handle_.getAngularVelocity()[0];
   gyro.y = imu_handle_.getAngularVelocity()[1];
@@ -445,12 +446,6 @@ void BalanceController::moveJoint(const ros::Time& time, const ros::Duration& pe
       balance_mode_ = BalanceMode::NORMAL;
       balance_state_changed_ = true;
     }
-  }
-  // Check imu
-  if (!imu_online_)
-  {
-    balance_mode_ = BalanceMode::FALLEN;
-    ROS_WARN_THROTTLE(1.0, "base imu online!");
   }
 
   switch (balance_mode_)
@@ -649,25 +644,58 @@ void BalanceController::reconfigCB(rm_chassis_controllers::QRConfig& config, uin
   r_dynamic_[2] = config.r_2;
   r_dynamic_[3] = config.r_3;
 
+  double power_limit = cmd_rt_buffer_.readFromRT()->cmd_chassis_.power_limit;
   // Update Q
   for (int i = 0; i < STATE_DIM; ++i)
   {
-    q_mid_(i, i) = static_cast<double>(q_dynamic_[i]);
+    if (power_limit < 80)
+      q_low_(i, i) = static_cast<double>(q_dynamic_[i]);
+    else if (power_limit < 120)
+      q_mid_(i, i) = static_cast<double>(q_dynamic_[i]);
+    else
+      q_high_(i, i) = static_cast<double>(q_dynamic_[i]);
   }
   // Update R
   for (int i = 0; i < CONTROL_DIM; ++i)
   {
-    r_mid_(i, i) = static_cast<double>(r_dynamic_[i]);
+    if (power_limit < 80)
+      r_low_(i, i) = static_cast<double>(r_dynamic_[i]);
+    else if (power_limit < 120)
+      r_mid_(i, i) = static_cast<double>(r_dynamic_[i]);
+    else
+      r_high_(i, i) = static_cast<double>(r_dynamic_[i]);
   }
 
-  Lqr<double> lqr(a_, b_, q_mid_, r_mid_);
-  if (!lqr.computeK())
+  if (power_limit < 80)
   {
-    ROS_ERROR("Failed to compute K of LQR.");
+    Lqr<double> lqr(a_, b_, q_low_, r_low_);
+    if (!lqr.computeK())
+    {
+      ROS_ERROR("Failed to compute K_LOW of LQR.");
+    }
+    k_low_ = lqr.getK();
+    ROS_INFO_STREAM("K_LOW of LQR:" << k_mid_);
   }
-
-  k_mid_ = lqr.getK();
-  ROS_INFO_STREAM("K of LQR:" << k_mid_);
+  else if (power_limit < 120)
+  {
+    Lqr<double> lqr(a_, b_, q_mid_, r_mid_);
+    if (!lqr.computeK())
+    {
+      ROS_ERROR("Failed to compute K_MID of LQR.");
+    }
+    k_mid_ = lqr.getK();
+    ROS_INFO_STREAM("K_MID of LQR:" << k_mid_);
+  }
+  else
+  {
+    Lqr<double> lqr(a_, b_, q_high_, r_high_);
+    if (!lqr.computeK())
+    {
+      ROS_ERROR("Failed to compute HIGH of LQR.");
+    }
+    k_high_ = lqr.getK();
+    ROS_INFO_STREAM("K_HIGH of LQR:" << k_mid_);
+  }
 }
 
 }  // namespace rm_chassis_controllers
