@@ -124,7 +124,7 @@ private:
   double roll_;
   double pendulum_length_[2], leg_length_cmd_ = 0.13;
   control_toolbox::Pid pid_left_leg_, pid_right_leg_, pid_theta_diff_, pid_roll_;
-  ros::Publisher leg_length_publisher_, leg_pendulum_support_force_;
+  ros::Publisher leg_length_publisher_, leg_pendulum_support_force_publisher_;
 
   // VMC
   std::shared_ptr<VMC> vmc_;

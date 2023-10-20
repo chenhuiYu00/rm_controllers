@@ -58,10 +58,6 @@ bool LeggedBalanceLQRController::init(hardware_interface::RobotHW* robot_hw, ros
     ROS_INFO("Fail to init vmc params");
   }
 
-  //  ocs2::loadData::loadCppDataType(filename, "Dynamics.powerCoeffEffort", param_.powerCoeffEffort_);
-  //  ocs2::loadData::loadCppDataType(filename, "Dynamics.powerCoeffVel", param_.powerCoeffVel_);
-  //  ocs2::loadData::loadCppDataType(filename, "Dynamics.powerOffset", param_.powerOffset_);
-
   q_.setZero();
   r_.setZero();
   XmlRpc::XmlRpcValue q, r;
@@ -121,14 +117,14 @@ bool LeggedBalanceLQRController::init(hardware_interface::RobotHW* robot_hw, ros
 
   observation_publisher_.reset(
       new realtime_tools::RealtimePublisher<std_msgs::Float64MultiArray>(controller_nh, "state", 100));
-  observation_publisher_->msg_.data.resize(sizeof(std_msgs::Float64) * STATE_DIM);
+  observation_publisher_->msg_.data.resize(STATE_DIM);
   input_publisher_.reset(
       new realtime_tools::RealtimePublisher<std_msgs::Float64MultiArray>(controller_nh, "input", 100));
-  input_publisher_->msg_.data.resize(sizeof(std_msgs::Float64) * INPUT_DIM);
+  input_publisher_->msg_.data.resize(INPUT_DIM);
 
   // Pub leg info
   leg_length_publisher_ = controller_nh.advertise<std_msgs::Float64MultiArray>("pendulum_length", 1);
-  leg_pendulum_support_force_ = controller_nh.advertise<std_msgs::Float64MultiArray>("support_force", 1);
+  leg_pendulum_support_force_publisher_ = controller_nh.advertise<std_msgs::Float64MultiArray>("support_force", 1);
 
   // Sub leg cmd
   leg_cmd_sub_ = controller_nh.subscribe("leg_cmd", 1, &LeggedBalanceLQRController::legCmdCallback, this);
@@ -352,7 +348,7 @@ void LeggedBalanceLQRController::normal(const ros::Time& time, const ros::Durati
   std_msgs::Float64MultiArray leg_force;
   leg_force.data.push_back(F_bl(0));
   leg_force.data.push_back(F_bl(1));
-  leg_pendulum_support_force_.publish(leg_force);
+  leg_pendulum_support_force_publisher_.publish(leg_force);
 
   double T_theta_diff = pid_theta_diff_.computeCommand(observation_state_[1] - observation_state_[2], period);
   matrix_t left_eff, right_eff;
@@ -369,6 +365,13 @@ void LeggedBalanceLQRController::normal(const ros::Time& time, const ros::Durati
   joint_handles_[3].setCommand(right_eff(0));
   joint_handles_[4].setCommand(left_eff(1));
   joint_handles_[5].setCommand(right_eff(1));
+
+  for (int i = 0; i < INPUT_DIM; i++)
+  {
+    input_state_[i] = u(i);
+    input_publisher_->msg_.data.at(i) = u(i);
+  }
+  input_publisher_->unlockAndPublish();
 }
 
 void LeggedBalanceLQRController::block(const ros::Time& time, const ros::Duration& period)
@@ -432,11 +435,11 @@ bool LeggedBalanceLQRController::loadDynamicsParams(ros::NodeHandle& controller_
 
   ros::NodeHandle dynamics_nh = ros::NodeHandle(controller_nh, "dynamics");
 
-  return dynamics_nh.getParam("d", param_.d_) && dynamics_nh.getParam("l_c", param_.l_c) &&
-         dynamics_nh.getParam("r", param_.r_) && dynamics_nh.getParam("massBody", param_.massBody_) &&
-         dynamics_nh.getParam("massLeg", param_.massLeg_) && dynamics_nh.getParam("massWheel", param_.massWheel_) &&
-         dynamics_nh.getParam("jWheel", param_.jWheel_) && dynamics_nh.getParam("kWheel", param_.kWheel_) &&
-         dynamics_nh.getParam("i1", param_.i1) && dynamics_nh.getParam("i2", param_.i2) &&
+  return dynamics_nh.getParam("d", param_.d_) || dynamics_nh.getParam("l_c", param_.l_c) ||
+         dynamics_nh.getParam("r", param_.r_) || dynamics_nh.getParam("massBody", param_.massBody_) ||
+         dynamics_nh.getParam("massLeg", param_.massLeg_) || dynamics_nh.getParam("massWheel", param_.massWheel_) ||
+         dynamics_nh.getParam("jWheel", param_.jWheel_) || dynamics_nh.getParam("kWheel", param_.kWheel_) ||
+         dynamics_nh.getParam("i1", param_.i1) || dynamics_nh.getParam("i2", param_.i2) ||
          dynamics_nh.getParam("i3", param_.i3);
 }
 
@@ -450,7 +453,7 @@ bool LeggedBalanceLQRController::loadVMCParams(ros::NodeHandle& controller_nh)
   ros::NodeHandle vmc_nh = ros::NodeHandle(controller_nh, "vmc");
 
   double l_a, l_u, l_d;
-  if (!vmc_nh.getParam("l_a", l_a) && !vmc_nh.getParam("l_u", l_u) && !vmc_nh.getParam("l_d", l_d))
+  if (!vmc_nh.getParam("l_a", l_a) || !vmc_nh.getParam("l_u", l_u) || !vmc_nh.getParam("l_d", l_d))
     return false;
 
   vmc_ = std::make_shared<VMC>(l_a, l_u, l_d);
